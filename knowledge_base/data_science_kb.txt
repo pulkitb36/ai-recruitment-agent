@@ -1,0 +1,13 @@
+Bias-variance tradeoff: High bias means the model is too simple and underfits. High variance means the model is too complex and overfits. Balance minimizes total error.
+
+Overfitting occurs when a model learns noise in training data. Solutions: regularization, dropout, early stopping, more data.
+
+Cross-validation splits data into k folds, training on k-1 and testing on the remaining fold, repeated k times.
+
+Precision = TP / (TP + FP). Recall = TP / (TP + FN). F1 = 2 * (Precision * Recall) / (Precision + Recall).
+
+Random Forest: ensemble of decision trees trained on bootstrapped subsets. Final prediction is majority vote or mean.
+
+Missing data strategies: mean/median imputation, mode for categorical, KNN imputation, or model-based imputation.
+
+Recommendation systems: collaborative filtering uses user-item interactions. Content-based filtering uses item attributes. Matrix factorization decomposes the interaction matrix.

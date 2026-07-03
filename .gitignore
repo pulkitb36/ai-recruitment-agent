@@ -1,0 +1,38 @@
+@'
+# Environment variables - NEVER commit these
+backend/.env
+.env
+.env.local
+frontend/.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Database
+backend/recruitment.db
+*.db
+
+# ChromaDB data
+backend/chroma_db/
+
+# Generated reports
+backend/generated_reports/
+
+# Node
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+'@ | Set-Content -Path .gitignore -Encoding UTF8

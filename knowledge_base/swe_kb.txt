@@ -1,0 +1,13 @@
+REST API: stateless, client-server, uniform interface. HTTP methods: GET, POST, PUT, PATCH, DELETE.
+
+Authentication verifies identity. Authorization verifies permissions. JWT is a stateless signed token.
+
+Database indexing speeds up reads but slows writes. B-tree for range queries, hash index for exact lookups.
+
+CAP theorem: distributed systems guarantee only two of Consistency, Availability, Partition tolerance.
+
+Docker containerizes applications with dependencies. docker-compose orchestrates multi-container apps.
+
+Microservices are small independently deployable services, each owning its own database, communicating via REST or message queues.
+
+Time complexity: O(1), O(log n), O(n), O(n log n), O(n squared) describe how runtime scales with input size.
