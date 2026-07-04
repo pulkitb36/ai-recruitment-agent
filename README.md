@@ -4,10 +4,10 @@ An end-to-end AI-powered recruitment platform that automates candidate interview
 
 ## To Be improved before release 
 
--SQLite not recommended for production — switch to PostgreSQL for scale
--Give admin access to a certain email
--Remove older admin access
--- PostgreSQL for production deployment
+-SQLite not recommended for production — switch to PostgreSQL for scale  
+-Give admin access to a certain email  
+-Remove older admin access  
+--PostgreSQL for production deployment  
 
 ---
 
