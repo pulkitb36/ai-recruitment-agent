@@ -73,8 +73,8 @@ AI Recruitment Agent acts as an intelligent virtual recruiter capable of screeni
 ---
 
 ## Project Structure
-recruitment-agent/
-├── backend/
+recruitment-agent/\
+├── backend/\
 │   ├── main.py                 # FastAPI app, all endpoints, WebSocket handler\
 │   ├── config.py               # Environment variable management\
 │   ├── database.py             # SQLAlchemy engine and session\
@@ -108,7 +108,7 @@ recruitment-agent/
 ├── Dockerfile\
 ├── docker-compose.yml\
 ├── requirements.txt\
-└── .gitignore\
+└── .gitignore
 
 ---
 
