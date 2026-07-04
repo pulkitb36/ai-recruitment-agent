@@ -75,40 +75,40 @@ AI Recruitment Agent acts as an intelligent virtual recruiter capable of screeni
 ## Project Structure
 recruitment-agent/
 ├── backend/
-│   ├── main.py                 # FastAPI app, all endpoints, WebSocket handler
-│   ├── config.py               # Environment variable management
-│   ├── database.py             # SQLAlchemy engine and session
-│   ├── models.py               # Database models (User, Candidate, Session, Report, JobRole)
-│   ├── auth.py                 # JWT creation, verification, password hashing
-│   ├── resume_parser.py        # HuggingFace NER + regex resume extraction
-│   ├── question_engine.py      # Gemini-powered question generation
-│   ├── evaluator.py            # Gemini-powered answer and interview evaluation
-│   ├── rag_knowledge_base.py   # ChromaDB RAG for answer verification
-│   ├── interview.py            # TTS generation (ElevenLabs)
-│   ├── report.py               # PDF report generation
-│   ├── mock_mode.py            # Fallback data when AI unavailable
-│   ├── seed_kb.py              # One-time knowledge base seeding script
-│   └── .env                    # Environment variables (never commit)
-├── frontend/
-│   ├── pages/
-│   │   ├── index.jsx           # Candidate dashboard (resume upload)
-│   │   ├── login.jsx           # Login page
-│   │   ├── signup.jsx          # Signup page
-│   │   ├── admin.jsx           # Admin dashboard
-│   │   ├── interview/[id].jsx  # Live interview room
-│   │   └── report/[id].jsx     # Interview report page
-│   ├── components/
-│   │   ├── AudioRecorder.jsx   # Mic recording component
-│   │   └── TranscriptBox.jsx   # Live transcript display
-│   └── lib/
-│       └── api.js              # All API and WebSocket functions
-├── knowledge_base/
-│   ├── data_science_kb.txt     # DS/ML knowledge for RAG verification
-│   └── swe_kb.txt              # SWE knowledge for RAG verification
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-└── .gitignore
+│   ├── main.py                 # FastAPI app, all endpoints, WebSocket handler\
+│   ├── config.py               # Environment variable management\
+│   ├── database.py             # SQLAlchemy engine and session\
+│   ├── models.py               # Database models (User, Candidate, Session, Report, JobRole)\
+│   ├── auth.py                 # JWT creation, verification, password hashing\
+│   ├── resume_parser.py        # HuggingFace NER + regex resume extraction\
+│   ├── question_engine.py      # Gemini-powered question generation\
+│   ├── evaluator.py            # Gemini-powered answer and interview evaluation\
+│   ├── rag_knowledge_base.py   # ChromaDB RAG for answer verification\
+│   ├── interview.py            # TTS generation (ElevenLabs)\
+│   ├── report.py               # PDF report generation\
+│   ├── mock_mode.py            # Fallback data when AI unavailable\
+│   ├── seed_kb.py              # One-time knowledge base seeding script\
+│   └── .env                    # Environment variables (never commit)\
+├── frontend/\
+│   ├── pages/\
+│   │   ├── index.jsx           # Candidate dashboard (resume upload)\
+│   │   ├── login.jsx           # Login page\
+│   │   ├── signup.jsx          # Signup page\
+│   │   ├── admin.jsx           # Admin dashboard\
+│   │   ├── interview/[id].jsx  # Live interview room\
+│   │   └── report/[id].jsx     # Interview report page\
+│   ├── components/\
+│   │   ├── AudioRecorder.jsx   # Mic recording component\
+│   │   └── TranscriptBox.jsx   # Live transcript display\
+│   └── lib/\
+│       └── api.js              # All API and WebSocket functions\
+├── knowledge_base/\
+│   ├── data_science_kb.txt     # DS/ML knowledge for RAG verification\
+│   └── swe_kb.txt              # SWE knowledge for RAG verification\
+├── Dockerfile\
+├── docker-compose.yml\
+├── requirements.txt\
+└── .gitignore\
 
 ---
 
@@ -302,7 +302,7 @@ docker-compose up --build
 ## Author
 
 **Pulkit Batra**
-B.Tech Data Science and AI — Thapar Institute of Engineering and Technology
+- B.Tech Data Science and AI — Thapar Institute of Engineering and Technology
 - GitHub: [@pulkitb36](https://github.com/pulkitb36)
 - LinkedIn: [pulkit-batra](https://linkedin.com/in/pulkit-batra-b7746937a)
 - Email: pulkit.batra360@gmail.com
