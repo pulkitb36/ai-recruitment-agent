@@ -1,6 +1,15 @@
 # AI Recruitment Agent
 
-An end-to-end AI-powered recruitment platform that automates candidate screening, interviewing, evaluation, and report generation.
+An end-to-end AI-powered recruitment platform that automates candidate interviewing, evaluation, and report generation.
+
+## To Be improved before release 
+
+-SQLite not recommended for production — switch to PostgreSQL for scale
+-Give admin access to a certain email
+-Remove older admin access
+-- PostgreSQL for production deployment
+
+---
 
 ## Overview
 
@@ -40,7 +49,6 @@ AI Recruitment Agent acts as an intelligent virtual recruiter capable of screeni
 
 ### Authentication
 - JWT-based login and signup
-- Admin account (username: admin, password: admin123)
 - Users can sign up with any email and password
 - Session persistence via localStorage
 
@@ -268,9 +276,8 @@ docker-compose up --build
 ## Known Limitations
 
 - Web Speech API only works in **Google Chrome**
-- ElevenLabs free tier limited to 10,000 characters per month
+- **ElevenLabs free tier** limited to 10,000 characters per month
 - Gemini free tier limited to 60 requests per minute
-- SQLite not recommended for production — switch to PostgreSQL for scale
 - Whisper STT not installed in Docker by default — uses browser STT instead
 
 ---
@@ -282,7 +289,6 @@ docker-compose up --build
 - Bulk resume upload and batch screening
 - Email notifications to candidates
 - Calendar integration for scheduling
-- PostgreSQL for production deployment
 - Mobile app support
 
 ---
@@ -311,4 +317,4 @@ docker-compose up --build
 
 ## License
 
-This project is for educational and portfolio purposes.
+A project by Pulkit Batra under Aristotle Intelligence
