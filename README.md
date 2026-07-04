@@ -83,36 +83,36 @@ AI Recruitment Agent acts as an intelligent virtual recruiter capable of screeni
 ## Project Structure
 recruitment-agent/\
 ├── backend/\
-│   ├── main.py                 # FastAPI app, all endpoints, WebSocket handler\
-│   ├── config.py               # Environment variable management\
-│   ├── database.py             # SQLAlchemy engine and session\
-│   ├── models.py               # Database models (User, Candidate, Session, Report, JobRole)\
-│   ├── auth.py                 # JWT creation, verification, password hashing\
-│   ├── resume_parser.py        # HuggingFace NER + regex resume extraction\
-│   ├── question_engine.py      # Gemini-powered question generation\
-│   ├── evaluator.py            # Gemini-powered answer and interview evaluation\
-│   ├── rag_knowledge_base.py   # ChromaDB RAG for answer verification\
-│   ├── interview.py            # TTS generation (ElevenLabs)\
-│   ├── report.py               # PDF report generation\
-│   ├── mock_mode.py            # Fallback data when AI unavailable\
-│   ├── seed_kb.py              # One-time knowledge base seeding script\
-│   └── .env                    # Environment variables (never commit)\
+│   ├── main.py                &emsp; # FastAPI app, all endpoints, WebSocket handler\
+│   ├── config.py              &emsp; # Environment variable management\
+│   ├── database.py            &emsp; # SQLAlchemy engine and session\
+│   ├── models.py              &emsp; # Database models (User, Candidate, Session, Report, JobRole)\
+│   ├── auth.py                &emsp; # JWT creation, verification, password hashing\
+│   ├── resume_parser.py       &emsp; # HuggingFace NER + regex resume extraction\
+│   ├── question_engine.py     &emsp; # Gemini-powered question generation\
+│   ├── evaluator.py           &emsp; # Gemini-powered answer and interview evaluation\
+│   ├── rag_knowledge_base.py  &emsp; # ChromaDB RAG for answer verification\
+│   ├── interview.py           &emsp;# TTS generation (ElevenLabs)\
+│   ├── report.py              &emsp; # PDF report generation\
+│   ├── mock_mode.py           &emsp; # Fallback data when AI unavailable\
+│   ├── seed_kb.py             &emsp; # One-time knowledge base seeding script\
+│   └── .env                   &emsp; # Environment variables (never commit)\
 ├── frontend/\
 │   ├── pages/\
-│   │   ├── index.jsx           # Candidate dashboard (resume upload)\
-│   │   ├── login.jsx           # Login page\
-│   │   ├── signup.jsx          # Signup page\
-│   │   ├── admin.jsx           # Admin dashboard\
-│   │   ├── interview/[id].jsx  # Live interview room\
-│   │   └── report/[id].jsx     # Interview report page\
+│   │   ├── index.jsx          &emsp; # Candidate dashboard (resume upload)\
+│   │   ├── login.jsx          &emsp; # Login page\
+│   │   ├── signup.jsx         &emsp; # Signup page\
+│   │   ├── admin.jsx          &emsp; # Admin dashboard\
+│   │   ├── interview/[id].jsx &emsp; # Live interview room\
+│   │   └── report/[id].jsx    &emsp; # Interview report page\
 │   ├── components/\
-│   │   ├── AudioRecorder.jsx   # Mic recording component\
-│   │   └── TranscriptBox.jsx   # Live transcript display\
+│   │   ├── AudioRecorder.jsx  &emsp; # Mic recording component\
+│   │   └── TranscriptBox.jsx  &emsp; # Live transcript display\
 │   └── lib/\
-│       └── api.js              # All API and WebSocket functions\
+│       └── api.js             &emsp; # All API and WebSocket functions\
 ├── knowledge_base/\
-│   ├── data_science_kb.txt     # DS/ML knowledge for RAG verification\
-│   └── swe_kb.txt              # SWE knowledge for RAG verification\
+│   ├── data_science_kb.txt    &emsp; # DS/ML knowledge for RAG verification\
+│   └── swe_kb.txt             &emsp; # SWE knowledge for RAG verification\
 ├── Dockerfile\
 ├── docker-compose.yml\
 ├── requirements.txt\
