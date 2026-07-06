@@ -413,4 +413,4 @@ def delete_role(
 
     db.delete(role)
     db.commit()
-    return {"success": True
+    return {"success": True}
