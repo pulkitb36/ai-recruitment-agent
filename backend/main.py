@@ -12,7 +12,7 @@ from config import settings
 from database import get_db, init_db
 from models import User, Candidate, InterviewSession, Answer, Report, JobRole
 from auth import hash_password, verify_password, create_access_token, get_current_user
-
+# change the name of app
 app = FastAPI(title="AI Recruitment Agent")
 
 app.add_middleware(
