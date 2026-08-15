@@ -12,6 +12,7 @@ from config import settings
 from database import get_db, init_db
 from models import User, Candidate, InterviewSession, Answer, Report, JobRole
 from auth import hash_password, verify_password, create_access_token, get_current_user
+<<<<<<< HEAD
 
 # from slowapi import Limiter, _rate_limit_exceeded_handler
 # from slowapi.util import get_remote_address
@@ -21,6 +22,9 @@ from auth import hash_password, verify_password, create_access_token, get_curren
 # app.state.limiter = limiter
 # app.add_exception_handler(RateLimitExceeded,_rate_limit_exceeded_handler)
 
+=======
+# change the name of app
+>>>>>>> dcf3fac66f80988cf53ac47854638e7e94065e0f
 app = FastAPI(title="AI Recruitment Agent")
 
 app.add_middleware(

@@ -21,4 +21,8 @@ transformers
 torch
 sentence-transformers
 google-genai
+<<<<<<< HEAD
 slowapi
+=======
+slowapi
+>>>>>>> dcf3fac66f80988cf53ac47854638e7e94065e0f
