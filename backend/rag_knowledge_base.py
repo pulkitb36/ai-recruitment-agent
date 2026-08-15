@@ -3,7 +3,6 @@ import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 from config import settings
 
-# Use local sentence-transformers model instead of ChromaDB's auto-download
 embedding_fn = SentenceTransformerEmbeddingFunction(
     model_name="all-MiniLM-L6-v2"
 )
@@ -27,9 +26,7 @@ def verify_answer(question, candidate_answer):
     except Exception:
         reference_docs = []
 
-    # If no OpenAI key, return neutral verification
-    from mock_mode import IS_MOCK
-    if IS_MOCK or not reference_docs:
+    if not reference_docs:
         return {
             "is_correct": None,
             "accuracy_score": 5,
@@ -38,25 +35,40 @@ def verify_answer(question, candidate_answer):
             "corrections": "Could not verify"
         }
 
-    from openai import OpenAI
-    from config import settings
-    client = OpenAI(api_key=settings.openai_api_key)
-
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": f"""Evaluate this interview answer.
-            Reference: {chr(10).join(reference_docs)}
-            Question: {question}
-            Answer: {candidate_answer}
-            Return ONLY valid JSON: {{"is_correct": true/false/null,
-            "accuracy_score": 0-10, "key_points_covered": [],
-            "missing_points": [], "corrections": ""}}"""}],
-            temperature=0.1,
-            max_tokens=300
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=settings.gemini_api_key)
+
+        prompt = f"""Verify this interview answer against the reference knowledge.
+
+Reference: {chr(10).join(reference_docs)}
+Question: {question}
+Answer: {candidate_answer}
+
+Return ONLY valid JSON:
+{{
+  "is_correct": true,
+  "accuracy_score": 7,
+  "key_points_covered": ["point1"],
+  "missing_points": ["missing1"],
+  "corrections": ""
+}}"""
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=300,
+            )
         )
-        return json.loads(response.choices[0].message.content)
-    except Exception:
+        text = response.text.strip().replace("```json", "").replace("```", "").strip()
+        return json.loads(text)
+
+    except Exception as e:
+        print(f"RAG verification error: {e}")
         return {
             "is_correct": None,
             "accuracy_score": 5,

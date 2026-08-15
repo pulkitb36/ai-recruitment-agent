@@ -7,10 +7,17 @@ const api = axios.create({ baseURL: API_BASE });
 // ── Resume ─────────────────────────────────────────────────────
 export async function uploadResume(file, jdText, userId = null) {
   const form = new FormData();
-  form.append("file", file);
-  form.append("jd", jdText);
+  form.append("file", file, file.name);  // explicitly pass filename
+  form.append("jd", jdText || "");
   if (userId) form.append("user_id", userId);
-  const res = await api.post("/api/upload-resume", form);
+
+  const res = await api.post("/api/upload-resume", form, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+    transformRequest: (data) => data,  // prevent axios from modifying FormData
+  });
+
   if (res.data.error) throw new Error(res.data.error);
   if (!res.data.candidate_id) throw new Error("Upload succeeded but no candidate_id was returned");
   return res.data;
@@ -141,5 +148,16 @@ export function createInterviewSocket(sessionId, onAudio, onTranscript) {
 
   return ws;
 }
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      clearSession();
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

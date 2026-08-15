@@ -1,26 +1,36 @@
 from config import settings
 
-try:
-    import whisper
-    stt_model = whisper.load_model(settings.whisper_model)
-    WHISPER_AVAILABLE = True
-except ImportError:
-    WHISPER_AVAILABLE = False
-    print("Whisper not available — using mock transcription")
-
 def transcribe_audio(audio_path):
-    if not WHISPER_AVAILABLE:
-        return "This is a mock transcription since Whisper is not installed."
-    result = stt_model.transcribe(audio_path)
-    return result["text"]
+    """
+    Whisper-based transcription.
+    Falls back to mock if not available.
+    """
+    try:
+        import whisper
+        model = whisper.load_model(settings.whisper_model)
+        result = model.transcribe(audio_path)
+        return result["text"]
+    except Exception as e:
+        print(f"Whisper error: {e}")
+        return "mock answer for testing"
 
 def generate_tts(text):
-    from mock_mode import IS_MOCK
-    if IS_MOCK:
-        return b""
+    """
+    ElevenLabs TTS — human-like voice.
+    Falls back to empty bytes if key not available.
+    """
     try:
-        from elevenlabs import generate
-        return generate(text=text, voice="Rachel", api_key=settings.elevenlabs_api_key)
+        from elevenlabs.client import ElevenLabs
+        client = ElevenLabs(api_key=settings.elevenlabs_api_key)
+        audio = client.text_to_speech.convert(
+            voice_id="EXAVITQu4vr4xnSDxMaL",  # Sarah — natural female voice
+            text=text,
+            model_id="eleven_turbo_v2",         # fastest + most natural
+            output_format="mp3_44100_128",
+        )
+        # audio is a generator — collect all bytes
+        audio_bytes = b"".join(audio)
+        return audio_bytes
     except Exception as e:
         print(f"TTS error: {e}")
         return b""

@@ -1,46 +1,88 @@
 import json
-from mock_mode import IS_MOCK, MOCK_EVALUATION
-from rag_knowledge_base import verify_answer
 from config import settings
 
-def evaluate_single_answer(question, answer):
-    if IS_MOCK:
-        return {"technical_score": 7, "communication_score": 7, "confidence_score": 7,
-                "problem_solving_score": 7, "brief_feedback": "Mock evaluation", "rag_verified": None}
-    from openai import OpenAI
-    client = OpenAI(api_key=settings.openai_api_key)
-    verification = verify_answer(question, answer)
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": f"""Score this answer.
-        Question: {question}
-        Answer: {answer}
-        RAG result: {json.dumps(verification)}
-        Return JSON: {{"technical_score": 0-10, "communication_score": 0-10,
-        "confidence_score": 0-10, "problem_solving_score": 0-10, "brief_feedback": ""}}"""}],
-        temperature=0.2,
-        max_tokens=200
+def call_gemini_json(prompt: str) -> dict:
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=settings.gemini_api_key)
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.2,
+            max_output_tokens=600,
+        )
     )
-    scores = json.loads(response.choices[0].message.content)
-    scores["rag_verified"] = verification.get("is_correct")
-    return scores
+    text = response.text.strip()
+    text = text.replace("```json", "").replace("```", "").strip()
+    return json.loads(text)
+
+def evaluate_single_answer(question, answer):
+    try:
+        prompt = f"""You are an expert interviewer evaluating a candidate's answer.
+
+Question: {question}
+Answer: {answer}
+
+Score this answer and return ONLY valid JSON (no markdown, no explanation):
+{{
+  "technical_score": <0-10>,
+  "communication_score": <0-10>,
+  "confidence_score": <0-10>,
+  "problem_solving_score": <0-10>,
+  "brief_feedback": "<one sentence feedback>",
+  "rag_verified": null
+}}"""
+
+        return call_gemini_json(prompt)
+    except Exception as e:
+        print(f"Gemini evaluation error: {e}")
+        return {
+            "technical_score": 6,
+            "communication_score": 6,
+            "confidence_score": 6,
+            "problem_solving_score": 6,
+            "brief_feedback": "Answer recorded.",
+            "rag_verified": None
+        }
 
 def evaluate_full_interview(transcript, resume, jd):
-    if IS_MOCK:
+    try:
+        # Format transcript for Gemini
+        transcript_text = ""
+        for i, entry in enumerate(transcript):
+            transcript_text += f"Q{i+1}: {entry['question']}\n"
+            transcript_text += f"A{i+1}: {entry['answer']}\n\n"
+
+        prompt = f"""You are a senior recruiter evaluating a complete job interview.
+
+Candidate Profile:
+- Skills: {', '.join(resume.get('skills', []))}
+- Experience: {resume.get('experience_years', 0)} years
+- Education: {resume.get('education', 'Not specified')}
+
+Job Description: {jd[:400] if jd else 'General technical role'}
+
+Interview Transcript:
+{transcript_text}
+
+Evaluate the candidate thoroughly and return ONLY valid JSON (no markdown):
+{{
+  "overall_score": <0-100>,
+  "technical_score": <0-100>,
+  "communication_score": <0-100>,
+  "problem_solving": <0-100>,
+  "confidence_score": <0-100>,
+  "role_fit_score": <0-100>,
+  "strengths": ["<strength1>", "<strength2>", "<strength3>"],
+  "weaknesses": ["<weakness1>", "<weakness2>"],
+  "improvements": ["<area1>", "<area2>"],
+  "recommendation": "<Strong Hire|Hire|Consider|Reject>",
+  "explanation": "<2-3 sentence explanation of recommendation>"
+}}"""
+
+        return call_gemini_json(prompt)
+    except Exception as e:
+        print(f"Gemini full evaluation error: {e}")
+        from mock_mode import MOCK_EVALUATION
         return MOCK_EVALUATION
-    from openai import OpenAI
-    client = OpenAI(api_key=settings.openai_api_key)
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": f"""Evaluate this complete interview.
-        Resume: {json.dumps(resume)}
-        JD: {jd}
-        Transcript: {json.dumps(transcript)}
-        Return JSON: {{"overall_score":0,"technical_score":0,"communication_score":0,
-        "problem_solving":0,"confidence_score":0,"role_fit_score":0,
-        "strengths":[],"weaknesses":[],"improvements":[],
-        "recommendation":"Strong Hire/Hire/Consider/Reject","explanation":""}}"""}],
-        temperature=0.3,
-        max_tokens=600
-    )
-    return json.loads(response.choices[0].message.content)

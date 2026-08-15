@@ -10,6 +10,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./knowledge_base:/app/knowledge_base
+    restart: unless-stopped
 
   frontend:
     image: node:20-alpine
@@ -24,3 +25,4 @@ services:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       - backend
+    restart: unless-stopped

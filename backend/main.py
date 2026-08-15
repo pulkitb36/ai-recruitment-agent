@@ -13,6 +13,14 @@ from database import get_db, init_db
 from models import User, Candidate, InterviewSession, Answer, Report, JobRole
 from auth import hash_password, verify_password, create_access_token, get_current_user
 
+# from slowapi import Limiter, _rate_limit_exceeded_handler
+# from slowapi.util import get_remote_address
+# from slowapi.errors import RateLimitExceeded
+
+# limiter= Limiter(key_func=get_remote_address)
+# app.state.limiter = limiter
+# app.add_exception_handler(RateLimitExceeded,_rate_limit_exceeded_handler)
+
 app = FastAPI(title="AI Recruitment Agent")
 
 app.add_middleware(
@@ -46,11 +54,17 @@ class JobRoleRequest(BaseModel):
 
 # ── Auth Endpoints ─────────────────────────────────────────────
 @app.post("/api/auth/signup")
+# @limiter.limit("3minutes")
 def signup(req: SignupRequest, db: Session = Depends(get_db)):
+    if len(req.password) < 8:
+        return {"error": "Password must be at least 8 characters."}
+    if not any(c.isupper() for c in req.password):
+        return {"error": "Password must contain at least one uppercase letter."}
+    if not any(c.isdigit() for c in req.password):
+        return {"error": "Password must contain at least one number."}
     existing = db.query(User).filter_by(email=req.email).first()
     if existing:
         return {"error": "An account with this email already exists."}
-
     user = User(
         name=req.name,
         email=req.email,
@@ -59,40 +73,25 @@ def signup(req: SignupRequest, db: Session = Depends(get_db)):
     )
     db.add(user)
     db.commit()
-
     token = create_access_token({
-        "sub": user.id,
-        "email": user.email,
-        "role": user.role,
-        "name": user.name or ""
+        "sub": user.id, "email": user.email,
+        "role": user.role, "name": user.name or ""
     })
-    return {
-        "token": token,
-        "email": user.email,
-        "role": user.role,
-        "name": user.name or "",
-        "sub": user.id
-    }
+    return {"token": token, "email": user.email, "role": user.role,
+            "name": user.name or "", "sub": user.id}
 
 @app.post("/api/auth/login")
+# @limiter.limit("5/minute")
 def login(req: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter_by(email=req.email).first()
     if not user or not verify_password(req.password, user.hashed_password):
         return {"error": "Incorrect email or password."}
-
     token = create_access_token({
-        "sub": user.id,
-        "email": user.email,
-        "role": user.role,
-        "name": user.name or ""
+        "sub": user.id, "email": user.email,
+        "role": user.role, "name": user.name or ""
     })
-    return {
-        "token": token,
-        "email": user.email,
-        "role": user.role,
-        "name": user.name or "",
-        "sub": user.id
-    }
+    return {"token": token, "email": user.email, "role": user.role,
+            "name": user.name or "", "sub": user.id}
 
 @app.get("/api/auth/me")
 def me(current_user: dict = Depends(get_current_user)):
@@ -107,13 +106,17 @@ async def upload_resume(
     db: Session = Depends(get_db)
 ):
     try:
+        # Read file content
         content = await file.read()
+        print(f"Received file: {file.filename}, size: {len(content)} bytes, type: {file.content_type}")
+
+        if len(content) == 0:
+            return {"error": "Uploaded file is empty. Please try uploading again."}
         from resume_parser import extract_text, parse_resume, score_candidate
         text   = extract_text(content, file.filename)
         parsed = parse_resume(text)
         score  = score_candidate(parsed, jd)
 
-        # Use user's registered name as fallback if NER returns Unknown
         extracted_name = parsed.get("name", "Unknown")
         if extracted_name == "Unknown" and user_id:
             user_obj = db.query(User).filter_by(id=user_id).first()
@@ -136,7 +139,7 @@ async def upload_resume(
     except Exception as e:
         return {"error": str(e)}
 
-# ── Interview ──────────────────────────────────────────────────
+# ── Start Interview ────────────────────────────────────────────
 @app.post("/api/start-interview/{candidate_id}")
 def start_interview(candidate_id: str, db: Session = Depends(get_db)):
     try:
@@ -152,123 +155,206 @@ def start_interview(candidate_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         return {"error": str(e)}
 
+# ── WebSocket Interview ────────────────────────────────────────
 @app.websocket("/ws/interview/{session_id}")
-async def interview_ws(websocket: WebSocket, session_id: str, db: Session = Depends(get_db)):
+async def interview_ws(
+    websocket: WebSocket,
+    session_id: str,
+    db: Session = Depends(get_db)
+):
     await websocket.accept()
-    candidate = None
-    resume = {}
-    jd = ""
-    transcript = []
-    start_time = time.time()
+
+    candidate      = None
+    resume         = {}
+    jd             = ""
+    transcript     = []
+    history        = []
+    question_number = 0
+    start_time     = time.time()
 
     try:
-        from question_engine import get_intro, generate_next_question, generate_followup, should_end_interview
+        from question_engine import (
+            get_intro, generate_next_question,
+            generate_followup, should_end_interview
+        )
         from evaluator import evaluate_single_answer
-        from interview import transcribe_audio, generate_tts
+        from interview import generate_tts
 
-        session   = db.query(InterviewSession).filter_by(id=session_id).first()
-        candidate = db.query(Candidate).filter_by(id=session.candidate_id).first()
-        resume    = json.loads(candidate.parsed_data)
-        jd        = candidate.jd_text
-
-        history = []
-        question_number = 0
-
-        intro_audio = generate_tts(get_intro())
-        await websocket.send_bytes(intro_audio)
-
-        while True:
-            elapsed = (time.time() - start_time) / 60
-            if should_end_interview(question_number, elapsed):
-                await websocket.send_text(json.dumps({"type": "interview_complete"}))
-                break
-
-            audio_bytes = await websocket.receive_bytes()
-
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                tmp.write(audio_bytes)
-                tmp_path = tmp.name
-
-            answer_text      = transcribe_audio(tmp_path)
-            current_question = history[-1]["content"] if history else get_intro()
-            scores           = evaluate_single_answer(current_question, answer_text)
-
-            answer = Answer(
-                id=str(uuid.uuid4()),
-                session_id=session_id,
-                question_number=question_number,
-                question_text=current_question,
-                answer_text=answer_text,
-                technical_score=scores.get("technical_score", 5),
-                communication_score=scores.get("communication_score", 5),
-                confidence_score=scores.get("confidence_score", 5),
-                is_verified=scores.get("rag_verified") is not None
-            )
-            db.add(answer)
-            db.commit()
-
-            transcript.append({"question": current_question, "answer": answer_text})
-            history.append({"role": "user", "content": answer_text})
-
+        session = db.query(InterviewSession).filter_by(id=session_id).first()
+        if not session:
             await websocket.send_text(json.dumps({
-                "type":     "transcript",
-                "question": current_question,
-                "answer":   answer_text,
-                "scores":   scores
+                "type": "error", "message": "Session not found"
             }))
+            return
 
-            followup = generate_followup(current_question, answer_text)
-            next_q   = followup if followup else generate_next_question(
-                resume, jd, history, question_number + 1
-            )
-            history.append({"role": "assistant", "content": next_q})
-            question_number += 1
+        candidate = db.query(Candidate).filter_by(
+            id=session.candidate_id
+        ).first()
+        if not candidate:
+            await websocket.send_text(json.dumps({
+                "type": "error", "message": "Candidate not found"
+            }))
+            return
 
-            tts_audio = generate_tts(next_q)
-            await websocket.send_bytes(tts_audio)
+        resume = json.loads(candidate.parsed_data)
+        jd     = candidate.jd_text or ""
+
+        async def send_question(text, num):
+            await websocket.send_text(json.dumps({
+                "type":            "question",
+                "text":            text,
+                "question_number": num
+            }))
+            try:
+                tts_audio = generate_tts(text)
+                if tts_audio:
+                    await websocket.send_bytes(tts_audio)
+            except Exception as e:
+                print(f"TTS send error: {e}")
+
+        # Main message loop
+        while True:
+            raw = await websocket.receive_text()
+
+            try:
+                data = json.loads(raw)
+            except Exception:
+                continue
+
+            msg_type = data.get("type", "")
+
+            if msg_type == "start":
+                intro = get_intro()
+                history.append({"role": "assistant", "content": intro})
+                await send_question(intro, 0)
+
+            elif msg_type == "answer":
+                answer_text = data.get("text", "").strip()
+                if not answer_text:
+                    continue
+
+                current_question = history[-1]["content"] if history else get_intro()
+
+                # Safe evaluation
+                try:
+                    scores = evaluate_single_answer(current_question, answer_text)
+                except Exception as e:
+                    print(f"Evaluation error: {e}")
+                    scores = {
+                        "technical_score": 5,
+                        "communication_score": 5,
+                        "confidence_score": 5,
+                        "problem_solving_score": 5,
+                        "rag_verified": None
+                    }
+
+                # Save answer to DB
+                try:
+                    answer_obj = Answer(
+                        id=str(uuid.uuid4()),
+                        session_id=session_id,
+                        question_number=question_number,
+                        question_text=current_question,
+                        answer_text=answer_text,
+                        technical_score=scores.get("technical_score", 5),
+                        communication_score=scores.get("communication_score", 5),
+                        confidence_score=scores.get("confidence_score", 5),
+                        is_verified=scores.get("rag_verified") is not None
+                    )
+                    db.add(answer_obj)
+                    db.commit()
+                except Exception as e:
+                    print(f"DB save error: {e}")
+
+                transcript.append({
+                    "question": current_question,
+                    "answer": answer_text
+                })
+                history.append({"role": "user", "content": answer_text})
+                question_number += 1
+
+                # Check end condition
+                elapsed = (time.time() - start_time) / 60
+                if should_end_interview(question_number, elapsed):
+                    await websocket.send_text(json.dumps({
+                        "type": "interview_complete"
+                    }))
+                    break
+
+                # Generate next question
+                try:
+                    followup = generate_followup(current_question, answer_text)
+                    next_q = followup if followup else generate_next_question(
+                        resume, jd, history, question_number
+                    )
+                except Exception as e:
+                    print(f"Question gen error: {e}")
+                    from mock_mode import MOCK_QUESTIONS
+                    idx    = min(question_number, len(MOCK_QUESTIONS) - 1)
+                    next_q = MOCK_QUESTIONS[idx]
+
+                history.append({"role": "assistant", "content": next_q})
+                await send_question(next_q, question_number)
 
     except WebSocketDisconnect:
-        pass
+        print("Client disconnected")
     except Exception as e:
+        print(f"WebSocket error: {e}")
         try:
-            await websocket.send_text(json.dumps({"type": "error", "message": str(e)}))
+            await websocket.send_text(json.dumps({
+                "type": "error", "message": str(e)
+            }))
         except Exception:
             pass
     finally:
-        if candidate:
-            try:
-                from evaluator import evaluate_full_interview
-                from report import generate_pdf_report
-                final = evaluate_full_interview(transcript, resume, jd)
+     if candidate and transcript:
+        try:
+            from evaluator import evaluate_full_interview
+            from report import generate_pdf_report
 
-                report = Report(
-                    id=str(uuid.uuid4()),
-                    session_id=session_id,
-                    overall_score=final["overall_score"],
-                    technical_score=final["technical_score"],
-                    communication_score=final["communication_score"],
-                    problem_solving=final["problem_solving"],
-                    confidence_score=final["confidence_score"],
-                    role_fit_score=final["role_fit_score"],
-                    strengths=json.dumps(final["strengths"]),
-                    weaknesses=json.dumps(final["weaknesses"]),
-                    improvements=json.dumps(final["improvements"]),
-                    recommendation=final["recommendation"],
-                    explanation=final["explanation"]
-                )
+            print(f"Generating report for {len(transcript)} answers...")
+            final = evaluate_full_interview(transcript, resume, jd)
+            print(f"Evaluation done: {final.get('recommendation')}")
+
+            report = Report(
+                id=str(uuid.uuid4()),
+                session_id=session_id,
+                overall_score=float(final.get("overall_score", 75)),
+                technical_score=float(final.get("technical_score", 75)),
+                communication_score=float(final.get("communication_score", 75)),
+                problem_solving=float(final.get("problem_solving", 75)),
+                confidence_score=float(final.get("confidence_score", 75)),
+                role_fit_score=float(final.get("role_fit_score", 75)),
+                strengths=json.dumps(final.get("strengths", [])),
+                weaknesses=json.dumps(final.get("weaknesses", [])),
+                improvements=json.dumps(final.get("improvements", [])),
+                recommendation=final.get("recommendation", "Consider"),
+                explanation=final.get("explanation", "Interview completed.")
+            )
+
+            try:
                 pdf_path = generate_pdf_report(
                     {"id": candidate.id, "name": candidate.name},
                     final,
                     {"duration_secs": int(time.time() - start_time)}
                 )
-                report.pdf_path      = pdf_path
-                session.status       = "completed"
-                session.transcript   = json.dumps(transcript)
-                session.completed_at = datetime.datetime.utcnow()
-                db.add(report)
-                db.commit()
-            except Exception as e:
-                print(f"Final evaluation error: {e}")
+                report.pdf_path = pdf_path
+            except Exception as pdf_err:
+                print(f"PDF generation error: {pdf_err}")
+                report.pdf_path = None
+
+            session.status       = "completed"
+            session.transcript   = json.dumps(transcript)
+            session.completed_at = datetime.datetime.utcnow()
+
+            db.add(report)
+            db.commit()
+            print(f"Report saved successfully: {report.id}")
+
+        except Exception as e:
+            import traceback
+            print(f"Final evaluation error: {e}")
+            traceback.print_exc()
 
 # ── Report ─────────────────────────────────────────────────────
 @app.get("/api/report/{session_id}")
@@ -303,7 +389,6 @@ def list_candidates(
         candidates = db.query(Candidate).filter_by(
             user_id=current_user.get("sub")
         ).all()
-
     return [
         {
             "id":          c.id,
@@ -323,17 +408,16 @@ def delete_candidate(
 ):
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-
     candidate = db.query(Candidate).filter_by(id=candidate_id).first()
     if not candidate:
         return {"error": "Candidate not found"}
-
-    sessions = db.query(InterviewSession).filter_by(candidate_id=candidate_id).all()
+    sessions = db.query(InterviewSession).filter_by(
+        candidate_id=candidate_id
+    ).all()
     for s in sessions:
         db.query(Answer).filter_by(session_id=s.id).delete()
         db.query(Report).filter_by(session_id=s.id).delete()
         db.delete(s)
-
     db.delete(candidate)
     db.commit()
     return {"success": True}
@@ -348,15 +432,12 @@ def get_candidate_report(
         candidate_id=candidate_id,
         status="completed"
     ).all()
-
     if not sessions:
         return {"error": "No completed interviews found"}
-
-    latest_session = sessions[-1]
-    report = db.query(Report).filter_by(session_id=latest_session.id).first()
+    latest  = sessions[-1]
+    report  = db.query(Report).filter_by(session_id=latest.id).first()
     if not report:
         return {"error": "No report found"}
-
     return {
         "overall_score":       report.overall_score,
         "technical_score":     report.technical_score,
@@ -387,7 +468,6 @@ def create_role(
 ):
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-
     role = JobRole(
         id=str(uuid.uuid4()),
         title=req.title,
@@ -406,11 +486,9 @@ def delete_role(
 ):
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-
     role = db.query(JobRole).filter_by(id=role_id).first()
     if not role:
         return {"error": "Role not found"}
-
     db.delete(role)
     db.commit()
     return {"success": True}

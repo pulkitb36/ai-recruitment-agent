@@ -20,3 +20,5 @@ aiofiles
 transformers
 torch
 sentence-transformers
+google-genai
+slowapi
